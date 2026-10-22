@@ -2,73 +2,9 @@
 #include "esp_timer.h"
 #include <math.h>
 #include <stdlib.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
-//starts communication with DHT. Error codes: 1-got no response from DHT
-int sendStart(gpio_num_t pin)
-{
-    //send start signal 
-    gpio_set_level(pin, 0);
-    waituS(25);
-    gpio_set_level(pin, 1);
-
-    //listen for confirmation
-    waituS(5);
-    int hearsMessage = !gpio_get_level(pin);
-    if(hearsMessage)
-    {
-        waituS(75);
-    }
-    else
-    {
-        return 1;
-    }
-    return 0;
-
-}
-
-int getReading(gpio_num_t pin, float* temp, float* humid)
-{
-    //array to store a the binary reading from the DHT11
-    int binResultArr[2][16];
-
-    int attempts = 0;
-    while(attempts < 3) //make 3 attempts to get a reading, reports error code if 3rd attempt fails
-    {
-        //listen for start of a new report from DHT
-        int pinLevel = gpio_get_level(pin);
-        int curSignalStartsReport = 1; // true if cur signal is signal is the 50us message signalling the starting of a new transmission
-        for(int i = 0; i < 9; i++)
-        {
-            if(pinLevel == 1) curSignalStartsReport = 0;
-            pinLevel = gpio_get_level(pin);
-        }
-        
-        if(!curSignalStartsReport) continue; //failed to hear the start of a new report for whatever reason, try again
-        else //successfully got the start signal, ready to read data.
-        {
-            int curmeasurment = 0; //keeps track of what we're measuring
-            
-            for(int i = 0; i < 32; i++)
-            {
-                //wait till level is back to 0 as this signals the start of a bit transmission
-                while(gpio_get_level(pin))
-                {
-                    
-                }
-                waituS(80);
-                binResultArr[curmeasurment][i%16] = gpio_get_level(pin);
-                if(i != 0 && i % 16 == 0) curmeasurment++;
-            }
-        }
-        
-        //got a measurement, just need to interpret and return
-        double* interpretedResults = binArrtoInts(binResultArr);
-        *temp = interpretedResults[0];
-        *humid = interpretedResults[1];
-        free(interpretedResults);
-        return 0; //success
-    }
-}
 
 //waits time picoseconds.
 void waituS(int time)
@@ -80,22 +16,100 @@ while(esp_timer_get_time() < goalTime)
 }
 }
 
+//starts communication with DHT. Error codes: 1-got no response from DHT
+int sendStart(gpio_num_t pin)
+{
+    //send start signal 
+    gpio_set_level(pin, 0);
+    vTaskDelay(pdMS_TO_TICKS(30));
+    gpio_set_level(pin, 1);
+
+    //listen for confirmation
+    waituS(40);
+    int hearsMessage = !gpio_get_level(pin);
+    if(hearsMessage)
+    {
+        while(!gpio_get_level(pin)) //wait for DHT response signal to finish
+        {
+            
+        }
+    }
+    else
+    {
+        return 1;
+    }
+    return 0;
+
+}
+
 //converts a binary array passed as argument to 2 different doubles. Requires freeing the return array.
-double* binArrtoInts(int binArr[][16])
+double* binArrtoInts(int binArr[5][8])
 {
     double* ret = calloc(sizeof(double), 2);
-    union {
-        unsigned int x;
-        double y;
-    } converter;
 
-    converter.x = binArr[0];
-    ret[0] = converter.y;
+    int weights[] = {128, 64, 32, 16, 8, 4, 2, 1};
+    int j = 0;
+    while (j < 4) //runs twice, once for j = 0 for humidity and once for j = 2 for temperature
+    {
+        //whole part
+        for(int i = 0; i < 8; i++)
+        {
+            if(binArr[j][i]) ret[j/2]+= weights[i];
+        }
 
-    converter.x = binArr[1];
-    ret[1] = converter.y;
+        //decimal part
+        int dec = 0;
+        for(int i = 0; i < 8; i++)
+        {
+            if(binArr[j+1][i]) dec += weights[i];
+        }
+        ret[j/2]+=dec/10.0;
+        j+=2;
+    }
+        
     return ret;
 }
+
+
+int getReading(gpio_num_t pin, double* temp, double* humid)
+{
+    //array to store a the binary reading from the DHT11
+    int binResultArr[5][8];
+
+    int pinLevel = gpio_get_level(pin);
+    int curmeasurment = 0; //keeps track of what we're measuring
+    
+    for(int i = 0; i < 40; i++)
+    {
+        //wait till level is back to 0 as this signals the start of a bit transmission
+        while(gpio_get_level(pin))
+        {
+            
+        }
+
+        //wait till level is back to 1, this is where we can differentiate between a 1 or 0
+        while(!gpio_get_level(pin))
+        {
+            
+        }
+        waituS(45);
+
+        if(i != 0 && i % 8 == 0) curmeasurment++;
+        binResultArr[curmeasurment][i%8] = gpio_get_level(pin);
+        
+    }
+    
+    
+    //got a measurement, just need to interpret and return
+    double* interpretedResults = binArrtoInts(binResultArr);
+    *temp = interpretedResults[1];
+    *humid = interpretedResults[0];
+    free(interpretedResults);
+    return 0; //success
+}
+
+
+
 
 //sets temp and humid to correct values based on DHT11 readings. Error codes:0-success, 1-got no response from DHT
 int readDHT11(gpio_num_t pin, double* temp, double* humid)
