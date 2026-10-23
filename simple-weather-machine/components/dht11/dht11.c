@@ -4,10 +4,11 @@
 #include <stdlib.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "dht11.h"
 
 
 //waits time picoseconds.
-void waituS(int time)
+static void waituS(int time)
 {
 int64_t initialTime = esp_timer_get_time();
 int64_t goalTime = initialTime + time;
@@ -17,7 +18,7 @@ while(esp_timer_get_time() < goalTime)
 }
 
 //starts communication with DHT. Error codes: 1-got no response from DHT
-int sendStart(gpio_num_t pin)
+static int sendStart(gpio_num_t pin)
 {
     //send start signal 
     gpio_set_level(pin, 0);
@@ -43,9 +44,9 @@ int sendStart(gpio_num_t pin)
 }
 
 //converts a binary array passed as argument to 2 different doubles. Requires freeing the return array.
-double* binArrtoInts(int binArr[5][8])
+static double* binArrtoInts(int binArr[5][8])
 {
-    double* ret = calloc(sizeof(double), 2);
+    double* ret = calloc(2, sizeof(double));
 
     int weights[] = {128, 64, 32, 16, 8, 4, 2, 1};
     int j = 0;
@@ -71,7 +72,7 @@ double* binArrtoInts(int binArr[5][8])
 }
 
 
-int getReading(gpio_num_t pin, double* temp, double* humid)
+static int getReading(gpio_num_t pin, double* temp, double* humid)
 {
     //array to store a the binary reading from the DHT11
     int binResultArr[5][8];
