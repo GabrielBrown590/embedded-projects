@@ -2,7 +2,6 @@ I made it more natural and personal, with less repetitive phrasing and fewer ove
 
 Copy everything inside the block into your `.md` file.
 
-Writing
 
 # Simple Weather Machine – DHT11 Driver from Scratch (ESP-IDF)
 
@@ -221,7 +220,7 @@ Return value	Description
 0	Reading completed successfully.
 1	No sensor response detected during the initial communication check.
 Project structure
-text
+
 simple-weather-machine/
 ├── components/
 │   └── dht11/
