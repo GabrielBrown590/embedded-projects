@@ -12,13 +12,10 @@ The goal was to read temperature and humidity directly from the sensor and under
 
 Example output:
 
-text
 
 ```text
 Temperature: 19.6 °C   Humidity: 35 %
 ```
-
-\<\!-- Add a photo of the wiring here and a screenshot of the serial monitor output. --\>
 
 ## Why I built my own driver
 
@@ -44,8 +41,6 @@ A couple of notes about the wiring:
 The DHT11 uses a single data wire to communicate with the ESP32. It doesn't send data like a typical serial connection. Instead, each bit is represented by the length of a HIGH pulse.
 
 The basic sequence is:
-
-text
 
 ```text
 1. The ESP32 pulls the data line LOW for 30 ms,
@@ -104,8 +99,6 @@ It takes the GPIO pin connected to the DHT11 and pointers where the temperature 
 | `1` | Sensor didn't respond during the initial handshake |
 
 ## Project structure
-
-text
 
 ```text
 simple-weather-machine/
@@ -174,7 +167,6 @@ The DHT11 communicates with the ESP32 through a single data line. Information is
 
 The communication process has three main stages:
 
-text
 1. Start signal:
    ESP32 pulls the data line LOW for approximately 30 ms,
    then releases it HIGH.
